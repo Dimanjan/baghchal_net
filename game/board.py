@@ -4,29 +4,25 @@ from .lookup_values import *
 class Board:
     def __init__(self):
         self.board_array=[EMPTY_NUMBER]*TOTAL_INTERSECTIONS
-
-        # place baghs
-        for square in INITIAL_BAGH_SQ:
-            self.put_bagh(square)
-
-        self.bagh_occupancy=INITIAL_BAGH_SQ
+        self.bagh_occupancy=[0,4,20,24]
         self.goat_occupancy=[]
 
-        self.bagh_moves=self.legal_bagh_moves()
-        self.goat_moves=self.legal_goat_moves()
+        # initialize baghs
+        for square in [0,4,20,24]:
+            self.board_array[square]=BAGH_NUMBER
+
+        self.phase=PHASES['PLACEMENT']
+        self.position_string = self.stringify_position()
 
         self.captured_goats=0
         self.turn=GOAT_NUMBER
 
-        self.phase=PHASES['PLACEMENT']
 
         self.history={
-            'positions':{},
-            'index':{},
-            'total_moves':0,
-            'pgn_dict':[]
+            'positions':[],
+            'pgn':[]
         }
-        self.position_string = self.stringify_position()
+        
 
         self.repetitions={}
         self.thrice_repetition=False
@@ -34,6 +30,12 @@ class Board:
         self.draw = False
         self.victor=None
         self.game_end=False
+
+        self.bagh_moves=self.legal_bagh_moves()
+        self.goat_moves=self.legal_goat_moves()
+
+             
+        
 
     def switch_turn(self):
         if self.turn == BAGH_NUMBER:
@@ -60,10 +62,7 @@ class Board:
                 self.thrice_repetition = False #for both 3 and 2
 
     def stringify_position(self):
-        string=''
-        for piece in self.board_array:
-            string+=str(piece)
-        return string
+        return ''.join(str(i) for i in self.board_array)
         
     def put_bagh(self,square):
         self.board_array[square]=BAGH_NUMBER
@@ -81,51 +80,29 @@ class Board:
         self.board_array[square]=EMPTY_NUMBER
         self.goat_occupancy.remove(square)
 
-    def legal_goat_moves(self):               
-        if self.phase == PHASES['PLACEMENT']:
-            return_dict={
-                'moves':[],
-                'total_moves':0
-            }
-            for square in self.board_array:
+    def legal_goat_moves(self):
+        return_l =[]              
+        if self.phase == PHASES['PLACEMENT']:            
+            for square in range(len(self.board_array)):
                 if self.board_array[square] == EMPTY_NUMBER:
-                    return_dict['moves'].append(square)
-                    return_dict['total_moves']+=1
-            return return_dict
-            
+                    return_l.append(GOAT_LETTER+f"{square:02d}")            
         else:
-            return_dict={
-                'moves':{},
-                'total_moves':0
-            }
             for square in self.goat_occupancy:
-                return_dict['moves'][square]=[]
                 for connection in CONNECTIONS[square]:
                     if self.board_array[connection] == EMPTY_NUMBER:
-                        return_dict['moves'][square].append(connection)
-                        return_dict['total_moves']+=1            
-            return return_dict
+                        return_l.append(GOAT_LETTER+f"{connection:02d}"+f"{square:02d}")
+        return return_l
 
     def legal_bagh_moves(self):
-        return_dict={
-            'simple_moves':{},
-            'jump_moves':{},
-            'total_moves':0,
-            'total_jump_moves':0
-        }
+        return_l=[]
         for square in self.bagh_occupancy:
-            return_dict['simple_moves'][square]=[]
-            return_dict['jump_moves'][square]=[]
             for connection in CONNECTIONS[square]:
                 if self.board_array[connection] == EMPTY_NUMBER:
-                    return_dict['simple_moves'][square].append(connection)
-                    return_dict['total_moves']+=1
+                    return_l.append(BAGH_LETTER+f"{connection:02d}"+f"{square:02d}")                    
             for jump_connection in JUMP_CONNECTIONS[square]:
                 if self.board_array[jump_connection['jump_destination']] == EMPTY_NUMBER and self.board_array[jump_connection['jump_over']] == GOAT_NUMBER:
-                    return_dict['jump_moves'][square].append(jump_connection)
-                    return_dict['total_moves']+=1
-                    return_dict['total_jump_moves']+=1
-        return return_dict
+                    return_l.append(BAGH_LETTER+f"{jump_connection['jump_destination']:02d}"+f"{square:02d}"+f"{jump_connection['jump_over']:02d}")                    
+        return return_l
 
     def bagh_victory(self):
         if self.captured_goats >= 5:
@@ -133,76 +110,73 @@ class Board:
             self.game_end=True
 
     def goat_victory(self):
-        if  self.bagh_moves['total_moves'] == 0:
+        if  len(self.bagh_moves)==0:
             self.victor = GOAT_NUMBER
             self.game_end=True
 
     def is_draw(self):
-        if self.goat_moves['total_moves'] == 0 or self.thrice_repetition == True:
+        if len(self.goat_moves) == 0 or self.thrice_repetition == True:
             self.draw = True
             self.game_end=True
 
-    def make_move(self,move_dict):
-        #add history
-        self.position_string = self.stringify_position()
-        self.check_repetitions() #before updating history 
+    def make_move(self,move):
 
-        self.history['pgn_dict'].append(move_dict)
-        self.history['total_moves'] += 1
-        self.history['positions'][self.position_string] = self.history['total_moves']
-        self.history['index'][self.history['total_moves']] = self.position_string
-
-        if move_dict['piece']==BAGH_NUMBER:
-            self.remove_bagh(move_dict['from'])
-            self.put_bagh(move_dict['to'])
-            if 'captured' in move_dict:
-                self.remove_goat(move_dict['captured'])
-                self.captured_goats += 1
-            
+        if move[0]==BAGH_LETTER:
+            self.remove_bagh(int(move[3:5]))
+            self.put_bagh(int(move[1:3]))
+            if move[5:7]:
+                self.remove_goat(int(move[5:7]))
+                self.captured_goats += 1            
             self.goat_moves = self.legal_goat_moves()
             self.bagh_victory()
+            self.bagh_moves=['noturn']
 
         else:
-            self.put_goat(move_dict['to'])
-            if 'from' in move_dict:
-                self.remove_goat(move_dict['from']) 
+            self.put_goat(int(move[1:3]))
+            if move[3:5]:
+                self.remove_goat(int(move[3:5])) 
 
             self.bagh_moves = self.legal_bagh_moves()
             self.goat_victory()  
+            self.goat_moves = ['noturn']
 
         self.is_draw()
-        if self.history['total_moves'] >= PLACEMENT:
+        if len(self.history['pgn']) == PLACEMENT:
             self.phase = PHASES['MOVEMENT']
         
         self.switch_turn()
 
+        #add history
+        self.position_string = self.stringify_position()
+        self.check_repetitions() #before updating history 
+
+        self.history['pgn'].append(move)
+        self.history['positions'].append(self.position_string)
+
     def move_back(self):
         
         self.uncheck_repetition() #this happens before history is reverted
-        #remove history
-        del self.history['index'][self.history['total_moves']]              
-        del self.history['positions'][self.position_string] 
-        self.history['total_moves'] -= 1
-        self.position_string = self.history['index'][self.history['total_moves']] #revert to previous string
 
-        move_dict = self.history['pgn_dict'].pop()  
+        move = self.history['pgn'].pop()  
         
-        if move_dict['piece'] == BAGH_NUMBER:
-            self.remove_bagh(move_dict['to'])
-            self.put_bagh(move_dict['from'])
-            if 'captured' in move_dict:
-                self.put_goat(move_dict['captured'])
+        if move[0] == BAGH_LETTER:
+            self.remove_bagh(int(move[1:3]))
+            self.put_bagh(int(move[3:5]))
+            if move[5:7]:
+                self.put_goat(int(move[5:7]))
                 self.captured_goats -= 1
 
         else:
-            self.remove_goat(move_dict['to'])
-            if 'from' in move_dict:
-                self.put_goat(move_dict['from'])        
+            self.remove_goat(int(move[1:3]))
+            if move[3:5]:
+                self.put_goat(int(move[3:5]))        
 
-        if self.history['total_moves'] < PLACEMENT:
+        if len(self.history['pgn']) < PLACEMENT:
             self.phase = PHASES['PLACEMENT']
 
         self.draw=False
         self.victor=None
         self.game_end=False
         self.switch_turn()
+        self.history['positions'].remove(self.position_string)
+        self.position_string = self.stringify_position() #revert to previous string
