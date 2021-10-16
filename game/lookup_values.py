@@ -1,4 +1,4 @@
-from .definitions import *
+from definitions import *
 
 class Conversion:
     def to_coordinate(n): # Examples: 0 = (1,1) ; 1 = (1,2) ; ... ; 9 = (2,5) ; 21 = (5,2)
