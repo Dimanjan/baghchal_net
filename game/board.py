@@ -1,5 +1,5 @@
-from .definitions import *
-from .lookup_values import *
+from definitions import *
+from lookup_values import *
 
 class Board:
     def __init__(self):
@@ -14,6 +14,7 @@ class Board:
         self.phase=PHASES['PLACEMENT']
         self.position_string = self.stringify_position()
 
+        self.trapped_baghs=[]
         self.captured_goats=0
         self.turn=GOAT_NUMBER
 
@@ -81,6 +82,7 @@ class Board:
         self.goat_occupancy.remove(square)
 
     def legal_goat_moves(self):
+        self.legal_bagh_moves() #for updating number of trapped baghs since a move by bagh itself may trap or release another bagh
         return_l =[]              
         if self.phase == PHASES['PLACEMENT']:            
             for square in range(len(self.board_array)):
@@ -94,14 +96,22 @@ class Board:
         return return_l
 
     def legal_bagh_moves(self):
+        self.trapped_baghs=[]
         return_l=[]
         for square in self.bagh_occupancy:
+            nomove=True
             for connection in CONNECTIONS[square]:
                 if self.board_array[connection] == EMPTY_NUMBER:
+                    nomove=False
                     return_l.append(BAGH_LETTER+f"{connection:02d}"+f"{square:02d}")                    
             for jump_connection in JUMP_CONNECTIONS[square]:
                 if self.board_array[jump_connection['jump_destination']] == EMPTY_NUMBER and self.board_array[jump_connection['jump_over']] == GOAT_NUMBER:
+                    nomove=False
                     return_l.append(BAGH_LETTER+f"{jump_connection['jump_destination']:02d}"+f"{square:02d}"+f"{jump_connection['jump_over']:02d}")                    
+            if nomove:
+                self.trapped_baghs.append(square)
+
+
         return return_l
 
     def bagh_victory(self):
@@ -180,3 +190,15 @@ class Board:
         self.switch_turn()
         self.history['positions'].remove(self.position_string)
         self.position_string = self.stringify_position() #revert to previous string
+
+
+brd=Board()
+brd.make_move('G01')
+brd.move_back()
+print(brd.bagh_moves)
+print(brd.goat_moves)
+
+brd.make_move('B0500')
+print(brd.bagh_moves)
+print(brd.goat_moves)
+
