@@ -192,13 +192,3 @@ class Board:
         self.position_string = self.stringify_position() #revert to previous string
 
 
-brd=Board()
-brd.make_move('G01')
-brd.move_back()
-print(brd.bagh_moves)
-print(brd.goat_moves)
-
-brd.make_move('B0500')
-print(brd.bagh_moves)
-print(brd.goat_moves)
-
